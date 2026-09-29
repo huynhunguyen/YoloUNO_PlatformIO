@@ -137,6 +137,10 @@ void TaskSensor(void *pvParameters) {
           tb.sendTelemetryData("temperature", temperature);
           tb.sendTelemetryData("humidity", humidity);
           tb.sendAttributeData("rssi", WiFi.RSSI());
+          tb.sendAttributeData("channel", WiFi.channel());
+          tb.sendAttributeData("bssid", WiFi.BSSIDstr().c_str());
+          tb.sendAttributeData("localIp", WiFi.localIP().toString().c_str());
+          tb.sendAttributeData("ssid", WiFi.SSID().c_str());
         }
         xSemaphoreGive(tbMutex);
       }
