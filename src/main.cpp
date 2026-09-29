@@ -2,6 +2,10 @@
 #include <WebServer.h>
 #include <LittleFS.h>
 #include <Adafruit_NeoPixel.h>
+#include <Wire.h>
+#include <DHT20.h>
+#include <LiquidCrystal_I2C.h>
+
 
 // Access Point credentials
 const char *ap_ssid = "ESP32S3_Setup";
@@ -323,6 +327,50 @@ void setupAPMode()
 
 // Utility function to switch to Station mode
 
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+void TaskLEDControl(void *pvParameters) {
+  pinMode(GPIO_NUM_48, OUTPUT); // Initialize LED pin
+  int taskLedState = 0;
+  while(1) {
+    if (taskLedState == 0) {
+      digitalWrite(GPIO_NUM_48, HIGH); // Turn ON LED
+    } else {
+      digitalWrite(GPIO_NUM_48, LOW); // Turn OFF LED
+    }
+    taskLedState = 1 - taskLedState;
+    vTaskDelay(pdMS_TO_TICKS(2000));
+  }
+}
+
+void TaskTemperature_Humidity(void *pvParameters){
+  DHT20 dht20;
+  Wire.begin(GPIO_NUM_11, GPIO_NUM_12);
+  dht20.begin();
+  
+  lcd.init();
+  lcd.backlight();
+  
+  while(1){
+    dht20.read();
+    double temperature = dht20.getTemperature();
+    double humidity = dht20.getHumidity();
+
+    Serial.print("Temp: "); Serial.print(temperature); Serial.print(" *C ");
+    Serial.print(" Humidity: "); Serial.print(humidity); Serial.print(" %");
+    Serial.println();
+    
+    lcd.clear();
+    lcd.setCursor(0, 0);
+    lcd.print("Temp: "); lcd.print(temperature, 1); lcd.print(" C");
+    lcd.setCursor(0, 1);
+    lcd.print("Hum : "); lcd.print(humidity, 1); lcd.print(" %");
+    
+    vTaskDelay(pdMS_TO_TICKS(5000));
+  }
+}
+
 void setup()
 {
   Serial.begin(115200);
@@ -332,6 +380,10 @@ void setup()
   pinMode(BOOT_PIN, INPUT_PULLUP); // HIGH by default, LOW when pressed
 
   setupAPMode();
+
+  // Create FreeRTOS Tasks for sensors and LEDs
+  xTaskCreate(TaskLEDControl, "LED Control", 2048, NULL, 2, NULL);
+  xTaskCreate(TaskTemperature_Humidity, "Temp Hum", 4096, NULL, 2, NULL);
 }
 
 void loop()
